@@ -76,9 +76,10 @@ CBMCOMMON = {
     "PRINT_MODE" : 0x21,
     "DOUBLEPRINT" : 0x47,
     "UNDERLINE" : 0x2D,
+    "RESET" : 0x40,
     "COMMAND_IMAGE" : 0x2A,
     "COMMAND_FLIPCHARS" : 0x7B,
-    "COMMAND_RORATECHARS" : 0x56,
+    "COMMAND_ROTATECHARS" : 0x56,
     "COMMAND_BARCODE" : 0x1D,
     "COMMAND_BARCODE_PRINT" : 0x6B,
     "COMMAND_BARCODE_WIDTH" : 0x77,
@@ -113,12 +114,12 @@ def getMicroprinterCommands(model):
   if model.lower().startswith("cbm"):
     commands.update(CBMCOMMON)
     commands.update(CBMBARCODES)
-  if model.lower() == "CBM1000":
+  if model.lower() == "cbm1000":
     commands.update(CBM1000)
   return commands
 
 class Microprinter(object):
-  def __init__(self, serialport, model):
+  def __init__(self, serialport, model="CBM"):
     self._s = None
     self.commands = {}
     self._serialport = serialport
@@ -222,9 +223,13 @@ class Microprinter(object):
     self.flush()
   
   @check_serial_init
+  def resetState(self):
+    self.sendcodes(self.c['COMMAND'], self.c['RESET'])
+    self.flush()
+  
+  @check_serial_init
   def cut(self):
     self.sendcodes(self.c['COMMAND'], self.c['FULLCUT'])
-    
   
   @check_serial_init
   def partialCut(self):

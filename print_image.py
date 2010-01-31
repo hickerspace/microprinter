@@ -22,15 +22,11 @@ mode = int(sys.argv[3])
 
 for infile in sys.argv[4:]:
     try:
-        m.setLineFeedRate(1)
         im = Image.open(infile)
         print "Sending %s to the printer" % infile
         print_image(im, width, mode, m)
         m.feed()
-        m.feed()
-        m.feed()
-        m.setLineFeedRate(10)
-        m.feed(25)
+        m.feed(5)
         m.cut()
     except IOError:
         pass
