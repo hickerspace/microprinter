@@ -69,10 +69,10 @@ def check_serial_init(func):
 
 CBMCOMMON = {
     "COMMAND" : 0x1B,
-    "FULLCUT" : 0x69,
-    "PARTIALCUT" : 0x6D,
     "LF" : 0x10,
     "LINEFEED_RATE" : 0x33,
+    "FULLCUT" : [0x1B,0x69],
+    "PARTIALCUT" : [0x1B,0x6D],
     "PRINT_MODE" : 0x21,
     "DOUBLEPRINT" : 0x47,
     "UNDERLINE" : 0x2D,
@@ -106,8 +106,11 @@ CBMBARCODES = {
     "BARCODE_MODE_CODE128" : 0x07
     }
 
-CBM1000 = {}  # CBM1000 specific codes as necessary
-CBM231 = {}  # CBM231 specific codes as necessary
+CBM1000 = {
+    "FULLCUT" : [0x1D,0x56,0x01,0x49],
+    "PARTIALCUT" : [0x1D,0x56,0x66,0x10]}  # CBM1000 specific codes as necessary
+CBM231 = {
+    }  # CBM231 specific codes as necessary
 
 def getMicroprinterCommands(model):
   commands = {}
@@ -124,6 +127,8 @@ class Microprinter(object):
     self.commands = {}
     self._serialport = serialport
     self.c = getMicroprinterCommands(model)
+    if model.lower() == "cbm1000":
+      self.printMarkup = self.CBM1000_printMarkup
     self.reconnect()
 
   def reconnect(self):
@@ -229,11 +234,11 @@ class Microprinter(object):
   
   @check_serial_init
   def cut(self):
-    self.sendcodes(self.c['COMMAND'], self.c['FULLCUT'])
+    self.sendcodes(*self.c['FULLCUT'])
   
   @check_serial_init
   def partialCut(self):
-    self.sendcodes(self.c['COMMAND'], self.c['PARTIALCUT'])
+    self.sendcodes(*self.c['PARTIALCUT'])
 
   @check_serial_init
   def setDoubleprint(self, state=True):
@@ -252,52 +257,55 @@ class Microprinter(object):
     else:
       self.sendcodes(0x00)
     self.flush()
-    
-  @check_serial_init
-  def formatting(self, commands):
-    for command in commands:
-      if command == "D":
-        self.setDoubleprint(True)
-      elif command == "d":
-        self.setDoubleprint(False)
-      elif command == "U":
-        self.setUnderline(True)
-      elif command == "u":
-        self.setUnderline(False)
 
   @check_serial_init
-  def printMarkup(self, markeduptext):
-    def startFormatting(text, formatting = set()):
-      if (text.startswith("*") and "D" not in formatting):
-        formatting.add("D")
-        text = text[1:]
-        startFormatting(text, formatting)
-      if (text.startswith("_") and "U" not in formatting):
-        formatting.add("U")
-        text = text[1:]
-        startFormatting(text, formatting)
-      return text, formatting
-      
-    def endFormatting(text, formatting = set()):
-      if (text.endswith("*") and "d" not in formatting):
-        formatting.add("d")
-        text = text[:-1]
-        startFormatting(text, formatting)
-      if (text.endswith("_") and "u" not in formatting):
-        formatting.add("u")
-        text = text[:-1]
-        startFormatting(text, formatting)
-      return text, formatting
-    
+  def CBM1000_printMarkup(self, markeduptext):
+    old_flags, state_flags = 0, 0
+    off_flags = 0
+    self.setPrintMode(state_flags)
     for line in markeduptext.split("\n"):
-      for token in line.split(" "):
-        text, startcommands = startFormatting(token)
-        text, endcommands = endFormatting(text)
-        self.formatting(startcommands)
-        self.write(text)
-        self.formatting(endcommands)
+      for token in [x for x in line.split(" ") if x]:
+        old_flags = state_flags
+        while (token and token[0] in "*_^~"):
+          if token.startswith("*"):
+            token = token[1:]
+            state_flags = state_flags | CBM1000Mode.E
+          if token.startswith("_"):
+            token = token[1:]
+            state_flags = state_flags | CBM1000Mode.U
+          if token.startswith("^"):
+            token = token[1:]
+            state_flags = state_flags | CBM1000Mode.DH
+          if token.startswith("~"):
+            token = token[1:]
+            state_flags = state_flags | CBM1000Mode.DW
+        
+        while (token and token[-1] in "*_^~"):
+          if token.endswith("*"):
+            token = token[:-1]
+            off_flags = off_flags | CBM1000Mode.E
+          if token.endswith("_"):
+            token = token[:-1]
+            off_flags = off_flags | CBM1000Mode.U
+          if token.endswith("^"):
+            token = token[:-1]
+            off_flags = off_flags | CBM1000Mode.DH
+          if token.endswith("~"):
+            token = token[:-1]
+            off_flags = off_flags | CBM1000Mode.DW
+        
+        if old_flags != state_flags:
+          self.setPrintMode(state_flags)
+        
+        self.write(token)
+        
+        if off_flags:
+          state_flags = state_flags & (255 ^ (off_flags))
+          self.setPrintMode(state_flags)
+          off_flags = 0
+        
         self.write(" ")
-      self.feed()
+    self.feed()
 
   def setBarcodeTextPosition(self, position):
     if position < 0: position = 0

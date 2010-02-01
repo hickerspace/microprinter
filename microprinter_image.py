@@ -21,17 +21,20 @@ def print_row(data, mode, m):
       bytes.append(byte_column ^ 255)
   m.print_imagebytes(mode, bytes)
 
-def print_image(im, width, mode, m):
+def print_image(im, width, mode, m, autorotate=True):
   m.setLineFeedRate(1)
   rowlimit = 8
+  fudgefactor = 0.66
   if mode > 1:
     rowlimit = 24
+    fudgefactor = 1.0
   im = im.convert("1")
   size = im.size
-  if size[0] > size[1]:
-    # Landscape ratio
-    im = im.transpose(Image.ROTATE_90)
-  resize_ratio = (float(width)/im.size[0]) #  fudge factor for scaling
+  if autorotate:
+    if size[0] > size[1]:
+      # Landscape ratio
+      im = im.transpose(Image.ROTATE_90)
+  resize_ratio = (float(width)/im.size[0])*fudgefactor #  fudge factor for scaling
   im = im.resize((width, int(resize_ratio * im.size[1])))
   lbuffer = []
   rows = 0
@@ -49,12 +52,12 @@ def print_image(im, width, mode, m):
       columns = 0
       if len(lbuffer) == rowlimit:
         print_row(lbuffer, mode, m)
-        sleep(0.3)
+        sleep(0.2)
         lbuffer = []
         rows = rows + 1
   if 0 < len(lbuffer) < 8:
     lbuffer.extend([[1]*width]*(rowlimit-len(lbuffer)))
     print_row(lbuffer, mode, m)
-    sleep(0.3)
+    sleep(0.2)
   m.resetState()
 
