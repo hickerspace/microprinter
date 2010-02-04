@@ -7,6 +7,10 @@ http://microprinter.pbworks.com/
 
 Python library by Ben O'Steen based on/copied from Roo's work
 
+For CBM1000 connection notes, please see:
+
+http://microprinter.pbworks.com/CBM-1000
+
 --------------------------------------------------------------
 
 Both the python and Java libraries rely on the arduino relaying the serial connection to
