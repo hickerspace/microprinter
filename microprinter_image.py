@@ -28,7 +28,7 @@ def print_image(im, width, mode, m, autorotate=True):
   if mode > 1:
     rowlimit = 24
     fudgefactor = 1.0
-  im = im.convert("1")
+  im = im.convert("1", dither = Image.FLOYDSTEINBERG)
   size = im.size
   if autorotate:
     if size[0] > size[1]:
