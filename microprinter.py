@@ -109,6 +109,7 @@ CBMBARCODES = {
 CBM1000 = {
     "FULLCUT" : [0x1D,0x56,0x01,0x49],
     "PARTIALCUT" : [0x1D,0x56,0x66,0x10]}  # CBM1000 specific codes as necessary
+    "FEED" : 0x64
 CBM231 = {
     }  # CBM231 specific codes as necessary
 
@@ -123,12 +124,21 @@ def getMicroprinterCommands(model):
 
 class Microprinter(object):
   def __init__(self, serialport, model="CBM"):
+    """ >>> m = Microprinter("/dev/ttyUSB0", "CBM1000") 
+     >>> m.write("Mwuhahahahah!")
+     >>> m.feed(5)
+     >>> m.cut()
+     >>> m.close()
+    """
     self._s = None
     self.commands = {}
     self._serialport = serialport
     self.c = getMicroprinterCommands(model)
     if model.lower() == "cbm1000":
       self.printMarkup = self.CBM1000_printMarkup
+      self.feed = self.CBM1000feed
+    elif model.lower().startswith("cbm"):
+      self.feed = self.CBMfeed
     self.reconnect()
 
   def reconnect(self):
@@ -145,10 +155,18 @@ class Microprinter(object):
 
   @check_serial_init
   def sendcodes(self, *args):
+    """Will turn any set of integers to the printer directly:
+    
+    >>> m.sendcodes(*list_of_commands)
+    >>> """
     self._s.write("".join(map(chr, args)))
 
   @check_serial_init
   def write(self, *args):
+    """Basic command to write text to the printer.
+    >>> m.write("Writing a string")
+    >>> m.write(*["Writing a string", "and another", "and another/n/n"])
+    """
     if len(args) == 1 and isinstance(args[0], basestring):
       logger.debug("Treating the 'write' argument as a string")
       logger.debug("Printing '%s'" % args[0])
@@ -163,13 +181,26 @@ class Microprinter(object):
     self._s.flush()
 
   @check_serial_init
-  def feed(self, lines=1):
+  def CBM1000feed(self, lines=1):
+    """"""
     if lines and isinstance(lines, int):
       lines = lines % 256
-      self.sendcodes(self.c['COMMAND'], 0x64, lines)
+      self.sendcodes(self.c['COMMAND'], self.c['FEED'], lines)
       self.flush()
     else:
-      self.sendcodes(self.c['COMMAND'], 0x64, 1)
+      self.sendcodes(self.c['COMMAND'], self.c['FEED'], 1)
+      self.flush()
+
+  @check_serial_init
+  def CBMfeed(self, lines=1):
+    """"""
+    if lines and isinstance(lines, int):
+      lines = lines % 256
+      for x in xrange(lines):
+        self.write("\n\n")
+      self.flush()
+    else:
+        self.write("\n\n")
       self.flush()
 
   @check_serial_init
@@ -238,6 +269,8 @@ class Microprinter(object):
   
   @check_serial_init
   def partialCut(self):
+    """Even though this is what the data sheet states as being a partial cut
+    on the CBM1000, I haven't got it working."""
     self.sendcodes(*self.c['PARTIALCUT'])
 
   @check_serial_init
@@ -260,6 +293,19 @@ class Microprinter(object):
 
   @check_serial_init
   def CBM1000_printMarkup(self, markeduptext):
+    """Print some marked up text to the printer. (Similar to Roo's markup function but with differing functionality.
+    
+    ^ ... ^ = Apply Double Height to anything inbetween the '^' marks
+    ~ ... ~ = Double Width
+    * ... * = Emphasis/bold
+    _ ... _ = Underline
+    
+    Eg:
+    
+    '^This is text rendered at double height^ and this is not.'
+    '~Double width~ and *bold text*'
+    '_~*Underlined, double width and bold text*~_'"""
+    
     old_flags, state_flags = 0, 0
     off_flags = 0
     self.setPrintMode(state_flags)
@@ -305,6 +351,7 @@ class Microprinter(object):
           off_flags = 0
         
         self.write(" ")
+      self.feed(1)
     self.feed()
 
   def setBarcodeTextPosition(self, position):

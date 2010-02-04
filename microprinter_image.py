@@ -21,14 +21,21 @@ def print_row(data, mode, m):
       bytes.append(byte_column ^ 255)
   m.print_imagebytes(mode, bytes)
 
-def print_image(im, width, mode, m, autorotate=True):
+def print_image_from_file(path_to_file, width, mode, m, autorotate = True, dither = True):
+  im = Image(path_to_file)
+  print_image(im, width, mode, m, autorotate, dither)
+
+def print_image(im, width, mode, m, autorotate=True, dither = True):
   m.setLineFeedRate(1)
   rowlimit = 8
   fudgefactor = 0.66
   if mode > 1:
     rowlimit = 24
     fudgefactor = 1.0
-  im = im.convert("1", dither = Image.FLOYDSTEINBERG)
+  if dither:
+    im = im.convert("1", dither = Image.FLOYDSTEINBERG)
+  else:
+    im = im.convert("1")
   size = im.size
   if autorotate:
     if size[0] > size[1]:
@@ -55,7 +62,7 @@ def print_image(im, width, mode, m, autorotate=True):
         sleep(0.2)
         lbuffer = []
         rows = rows + 1
-  if 0 < len(lbuffer) < 8:
+  if 0 < len(lbuffer) < rowlimit:
     lbuffer.extend([[1]*width]*(rowlimit-len(lbuffer)))
     print_row(lbuffer, mode, m)
     sleep(0.2)

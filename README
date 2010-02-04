@@ -1,4 +1,139 @@
 Microprinter Arduino library
 
+Arduino sketch and Java library by Roo Reynolds:
+
 http://rooreynolds.com/category/microprinter/
 http://microprinter.pbworks.com/
+
+Python library by Ben O'Steen based on/copied from Roo's work
+
+--------------------------------------------------------------
+
+Both the python and Java libraries rely on the arduino relaying the serial connection to
+the microprinter.
+
+Python Usage example:
+
+Basics:
+
+>>> from microprinter import Microprinter
+
+# /dev/ttyUSB0 is the serial port to which my arduino is connected
+>>> m = Microprinter("/dev/ttyUSB0", "CBM1000")   # CBM1000 or CBM (needs testing with CBM231)
+
+Printing text:
+
+>>> m.write("Foo....\n\n Bar....\n")
+
+Formatting:
+
+# turn on underlining
+>>> m.setUnderline(True)
+>>> m.write("Underline reminds me of 1990s websites")
+
+# turn on 'double print' (Bold)
+>>> m.setDoubleprint(True)
+>>> m.write("This is printed with a darker shade")
+
+# reset printer to initial state (possibly a CBM1000 only feature?)
+>>> m.resetState()
+
+Paper control:
+
+# single linefeed
+>>> m.feed()
+
+# multiples
+>>> m.feed(5)
+
+# changing the linefeed rate: (haven't reversed-engineered what the default it - use m.resetState to reset)
+>>> m.setLineFeedRate(1)    # barely moves the print head - great for printing images
+
+# Cut the paper
+>>> m.cut()
+
+Barcodes:
+
+Dimension control:
+
+>>> m.setBarcodeDimensions(height, width)
+Boundaries: Unknown < height < 256
+            width = 2, 3, or 4
+    same as: m.setBarcodeWidth(width) and m.setBarcodeHeight(height) combined
+
+>>> m.printBarcode(barcode, barcode_mode)
+# Barcode mode can be any of:
+    "BARCODE_MODE_UPCA"
+    "BARCODE_MODE_UPCE"
+    "BARCODE_MODE_JAN13AEN"
+    "BARCODE_MODE_JAN8EAN"
+    "BARCODE_MODE_CODE39"
+    "BARCODE_MODE_ITF"
+    "BARCODE_MODE_CODEABAR"
+    "BARCODE_MODE_CODE128"
+
+>>> m.printUPCABarcode("12345678901")   # UPCA barcodes are 11-12 digits long
+
+CBM1000 text functions:
+
+>>> from microprinter import CBM1000Mode
+
+# CBM1000Mode contains flags for certain textual settings:
+# CBM1000Mode.E = Emphasis
+#            .U = Underline
+#            .DH = Double Height text
+#            .DW = Double Width text
+# These should be bitwise OR'd together to form the mode
+# CBM1000Mode.E|CBM1000Mode.U = Bold + Underline
+
+# Use it in conjunction with Microprinter.setPrintMode()
+# This will select font A by default - bitwise OR the flags with 1 to change to font B
+
+eg select a bold, double width version of font A
+>>> m.setPrintMode(CBM1000Mode.E|CBM1000Mode.DW)
+
+eg select a double height version of font B
+>>> m.setPrintMode(1|CBM1000Mode.DH)
+
+CBM1000 text markup method:
+
+Print some marked up text to the printer. (Similar to Roo's markup function but with differing functionality.
+    
+    ^ ... ^ = Apply Double Height to anything inbetween the '^' marks
+    ~ ... ~ = Double Width
+    * ... * = Emphasis/bold
+    _ ... _ = Underline
+    
+    Eg:
+    
+    >>> m.printMarkup('^This is text rendered at double height^ and this is not.')
+    >>> m.printMarkup('~Double width~ and *bold text*')
+    >>> m.printMarkup('_~*Underlined, double width and bold text*~_')
+
+Printing images (requires the Python Imaging Library - PIL to be installed):
+
+>>> from microprinter_image import print_image_from_file
+# Possibly CBM1000 only at this point, I can't test it otherwise
+# Also, this is quite experimental tempermental - some settings work, some don't
+
+# print_image_from_file(filepath, width_to_print_at, mode, Microprinter_instance,
+                        autorotate = True,  # attempt to rotate landscape picture to fit best
+                        dither = True       # turn image to 1-bit using dithering. False will cause it
+                                            # to convert the image to 1-bit using a Threshold)
+>>> print_image_from_file("/home/ben/test_image.png", 512, 33, m, autorotate=False, dither=True)
+
+Prints an image from a file (can handle any format the PIL can)
+
+What widths seem to work: 432, 516, 256   # 432 is suitable for 57mm width paper on the CBM1000
+
+modes = 0   - 101dpi width x 67dpi height   - normal ratio-ish
+        1   - 203dpi width x 67dpi height   - prints elongated along the paper length
+        
+        32   - 101dpi width x 203dpi height   - prints elongated along paper length
+        33   - 203dpi width x 203pi height   - HiDef ;)
+        
+0 is reasonably fast and 33 is slow but 33 is much higher resolution and looks 'better'
+
+NB not all modes work at all widths. In fact, finding the correct widths and complementary modes is akin 
+to finding nice skimming pebbles on the beach... you know the ones, flat and smooth with a bit of heft to them.
+Anyway, I'd like to get feedback on what modes/widths work or whereabouts in the datasheet it lists these.
