@@ -108,8 +108,8 @@ CBMBARCODES = {
 
 CBM1000 = {
     "FULLCUT" : [0x1D,0x56,0x01,0x49],
-    "PARTIALCUT" : [0x1D,0x56,0x66,0x10]}  # CBM1000 specific codes as necessary
-    "FEED" : 0x64
+    "PARTIALCUT" : [0x1D,0x56,0x66,0x10],
+    "FEED" : 0x64 }
 CBM231 = {
     }  # CBM231 specific codes as necessary
 
@@ -200,7 +200,7 @@ class Microprinter(object):
         self.write("\n\n")
       self.flush()
     else:
-        self.write("\n\n")
+      self.write("\n\n")
       self.flush()
 
   @check_serial_init
