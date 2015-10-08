@@ -15,7 +15,7 @@
 """
 
 from serial import Serial
-import Image, qrcode
+import Image, qrcode, textwrap
 #from time import sleep
 
 CBMCOMMANDS = {
@@ -61,6 +61,9 @@ class Microprinter(object):
 
 	def write(self, message):
 		self.printer.write(message)
+
+	def writeWrapped(self, message):
+		self.printer.write(textwrap.fill(message, 24))
 
 	def flush(self):
 		self.printer.flush()
