@@ -15,8 +15,11 @@
 """
 
 from serial import Serial
-import Image, qrcode, textwrap
-#from time import sleep
+import qrcode, textwrap
+try:
+	import Image
+except ImportError:
+	from PIL import Image
 
 CBMCOMMANDS = {
 	"COMMAND" : 0x1B,						"LF" : 0x10,
